@@ -1,0 +1,22 @@
+# Credenciais e dados sensíveis — NUNCA versionar
+.env
+*.session
+*.session-journal
+
+# Ambientes virtuais
+.venv/
+venv/
+env/
+
+# Cache Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Perfil Web (legado)
+.tg_profile/
+
+# IDEs
+.vscode/
+.idea/
