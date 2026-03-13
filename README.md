@@ -79,8 +79,6 @@ TWOFA_PASSWORD=           # deixe vazio se não usar 2FA
 AUTO_CONFIRM=true         # true = não pede confirmação manual
 ```
 
-> **.env nunca deve ser commitado.** Ele já está no `.gitignore`.
-
 ---
 
 ## Uso
