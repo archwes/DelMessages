@@ -27,6 +27,8 @@ from typing import Optional
 
 from telethon import TelegramClient
 from telethon.errors import SessionPasswordNeededError
+from telethon.tl.functions.messages import SendReactionRequest
+from telethon.tl.types import ReactionEmpty
 
 SESSION_NAME = "session_delete_msgs"
 BATCH_SIZE = 100
@@ -152,6 +154,36 @@ async def count_own_messages(client: TelegramClient, entity) -> int:
     return total
 
 
+async def remove_own_reactions(client: TelegramClient, entity, me_id: int) -> tuple[int, int]:
+    removed = 0
+    failed = 0
+
+    async for msg in client.iter_messages(entity):
+        if not msg or not msg.reactions:
+            continue
+
+        results = getattr(msg.reactions, "results", []) or []
+        has_mine = any(getattr(r, "chosen_order", None) is not None for r in results)
+        if not has_mine:
+            continue
+
+        try:
+            await client(
+                SendReactionRequest(
+                    peer=entity,
+                    msg_id=msg.id,
+                    reaction=[ReactionEmpty()],
+                )
+            )
+            removed += 1
+            print(f"Reacoes removidas ate agora: {removed}")
+            await asyncio.sleep(0.3)
+        except Exception:
+            failed += 1
+
+    return removed, failed
+
+
 async def delete_all_own_messages(client: TelegramClient, entity) -> tuple[int, int]:
     deleted_total = 0
     failed_total = 0
@@ -199,6 +231,7 @@ async def async_main() -> int:
     try:
         client = await connect_client(api_id, api_hash)
         me = await client.get_me()
+        me_id = me.id
         print(f"Conectado como: {me.first_name or ''} (@{me.username or 'sem_username'})")
 
         entity = await resolve_chat(client, chat)
@@ -211,18 +244,23 @@ async def async_main() -> int:
 
         if not auto_confirm:
             confirmation = input(
-                "Confirma apagar TODAS as suas mensagens para todos nesse chat? (digite APAGAR): "
+                "Confirma apagar TODAS as suas mensagens e reacoes nesse chat? (digite APAGAR): "
             ).strip()
             if confirmation != "APAGAR":
                 print("Operacao cancelada pelo usuario.")
                 return 0
 
-        deleted, failed = await delete_all_own_messages(client, entity)
-        print(f"Finalizado. Apagadas: {deleted} | Falhas: {failed}")
+        print("\n--- Apagando mensagens ---")
+        deleted, del_failed = await delete_all_own_messages(client, entity)
+        print(f"Mensagens apagadas: {deleted} | Falhas: {del_failed}")
 
-        if failed > 0:
+        print("\n--- Removendo reacoes ---")
+        removed, react_failed = await remove_own_reactions(client, entity, me_id)
+        print(f"Reacoes removidas: {removed} | Falhas: {react_failed}")
+
+        if del_failed > 0:
             print(
-                "Algumas mensagens podem nao ter sido removidas por restricoes do Telegram "
+                "\nAlgumas mensagens podem nao ter sido removidas por restricoes do Telegram "
                 "(muito antigas, permissao, tipo de chat ou tipo de mensagem)."
             )
 
